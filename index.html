@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clonado Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700;900&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body class="dark-mode">
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="spinner-triple">
+            <div class="ring ring-1"></div>
+            <div class="ring ring-2"></div>
+            <div class="ring ring-3"></div>
+        </div>
+        <p class="loading-text">Generando Clon...</p>
+    </div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar glass">
+            <div class="brand">
+                <i data-lucide="dna" class="neon-icon-blue"></i>
+                <h1> <span>CLONADOR PRO</span></h1>
+            </div>
+
+            <!-- Identidad -->
+            <div class="control-group">
+                <label class="section-label">SUJETO A ADAPTAR (TU SELFIE)</label>
+                <div id="drop-area-identity" class="drop-area">
+                    <input type="file" id="file-identity" accept="image/*" hidden>
+                    <div class="drop-placeholder">
+                        <i data-lucide="user"></i>
+                        <p>Sube tu cara</p>
+                    </div>
+                    <img id="preview-identity" src="#" alt="Identidad" style="display: none;">
+                    <div id="remove-identity" class="remove-btn" style="display: none;"><i data-lucide="x"></i></div>
+                </div>
+            </div>
+
+            <!-- Estilo / Referencia -->
+            <div class="control-group">
+                <label class="section-label">ESTILO A CLONAR (REFERENCIA)</label>
+                <div id="drop-area-style" class="drop-area">
+                    <input type="file" id="file-style" accept="image/*" hidden>
+                    <div class="drop-placeholder">
+                        <i data-lucide="image"></i>
+                        <p>Foto de estilo</p>
+                    </div>
+                    <img id="preview-style" src="#" alt="Estilo" style="display: none;">
+                    <div id="remove-style" class="remove-btn" style="display: none;"><i data-lucide="x"></i></div>
+                </div>
+                <p class="micro-text">La IA escaneará la luz, ropa y ambiente de esta foto.</p>
+            </div>
+
+            <div class="action-area">
+                <button id="generate-btn" class="btn-primary" disabled>
+                    <i data-lucide="play-circle"></i>
+                    INICIAR CLONADO
+                </button>
+            </div>
+
+
+
+            <footer class="sidebar-footer">
+                <p>Antonio Jiménez 2026</p>
+                <span></span> <!-- Automated Gemini Engine -->
+            </footer>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="main-header">
+                <div class="header-info">
+                    <h2>HISTORIAL</h2>
+                    <p>Clonación de identidad con telemetría técnica de referencia.</p>
+                </div>
+                <button id="clear-history" class="btn-secondary">
+                    <i data-lucide="trash-2"></i>
+                    Limpiar
+                </button>
+            </header>
+
+            <div id="results-grid" class="results-grid">
+                <div class="empty-state">
+                    <div class="icon-pulse"><i data-lucide="user-plus"></i></div>
+                    <h3>Listo para el proceso</h3>
+                    <p>Sube tu selfie y una referencia de estilo para empezar.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Lightbox -->
+    <div id="lightbox" class="lightbox hidden">
+        <span class="close-lightbox">&times;</span>
+        <img id="lightbox-img" src="#" alt="Fullscreen">
+        <div class="lightbox-controls">
+            <button id="download-btn-lb" class="btn-glass"><i data-lucide="download"></i> Descargar</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+
+</html>
