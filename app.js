@@ -223,7 +223,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // También cerrar al hacer clic en la imagen (cursor zoom-out)
     lightboxImg.onclick = closeLightbox;
 
-    const downloadBtnLb = document.getElementById('download-btn-lb');
     if (downloadBtnLb) {
         downloadBtnLb.onclick = () => {
             if (currentLightboxImage) {
@@ -440,10 +439,11 @@ RESULT: The person in the second image now has the face and hair from the first 
                 }
             }
         }
-                    }
-                }
-            }
+
+        if (images.length === 0) {
+            throw new Error('No se generó ninguna imagen.');
         }
+        return images;
 
         if (images.length === 0) {
             throw new Error('No se generó ninguna imagen.');
