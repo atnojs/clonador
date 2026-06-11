@@ -1,0 +1,10 @@
+# Proteger history_data: permitir solo acceso a imágenes, bloquear listado
+<IfModule mod_autoindex.c>
+    Options -Indexes
+</IfModule>
+<FilesMatch "\.(jpg|jpeg|png|gif|webp)$">
+    Require all granted
+</FilesMatch>
+<FilesMatch "\.(json|php)$">
+    Require all denied
+</FilesMatch>
