@@ -1,16 +1,13 @@
 /**
  * ════
- * 🧬 PROTOCOLO GEMINI v13.0 - CON HISTORIAL PERSISTENTE INDEXEDDB
+ * 🧬 PROTOCOLO GEMINI v14.0 - CON HISTORIAL PERSISTENTE SERVER-SIDE
  * ════
  * Modelo: gemini-3.1-flash-image-preview
- * Incluye: Historial IndexedDB, Lightbox, Botones de acción
+ * Incluye: HistoryManager (IndexedDB + servidor PHP), Lightbox, Botones de acción
  */
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- CONSTANTES ---
-    const DB_NAME = 'clonador_db';
-    const DB_VERSION = 1;
-    const STORE_NAME = 'history';
     const PROXY_URL = 'proxy.php';
     const MODEL = 'gemini-3.1-flash-image-preview';
 
@@ -19,7 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let styleImage = null;
     let styleAspectRatio = '1:1'; // Aspect ratio de la imagen de referencia
     let history = [];
-    let historyDb = null;
 
     // --- ELEMENTOS ---
     const dropIdentity = document.getElementById('drop-area-identity');
@@ -44,75 +40,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadBtnLb = document.getElementById('download-btn-lb');
 
     // ════
-    // INDEXEDDB - HISTORIAL PERSISTENTE (Patrón de imagenes_ia/editar)
+    // HISTORIAL PERSISTENTE — HistoryManager (IndexedDB + servidor PHP)
     // ════
-    const openHistoryDb = () => new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => { historyDb = request.result; resolve(historyDb); };
-        request.onupgradeneeded = (e) => {
-            const database = e.target.result;
-            if (!database.objectStoreNames.contains(STORE_NAME)) {
-                database.createObjectStore(STORE_NAME, { keyPath: 'id' });
-            }
-        };
+    HistoryManager.configure({
+        dbName: 'clonador_history_db',
+        storeName: 'history',
+        dbVersion: 1,
+        maxItems: 50,
+        historyUrl: './history.php'
     });
-
-    const loadHistoryFromDb = async () => {
-        try {
-            if (!historyDb) await openHistoryDb();
-            return new Promise((resolve, reject) => {
-                const tx = historyDb.transaction(STORE_NAME, 'readonly');
-                const store = tx.objectStore(STORE_NAME);
-                const req = store.getAll();
-                req.onsuccess = () => {
-                    const items = req.result || [];
-                    items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-                    resolve(items);
-                };
-                req.onerror = () => reject(req.error);
-            });
-        } catch (e) { console.warn('Error cargando historial:', e); return []; }
-    };
-
-    const saveHistoryItemToDb = async (item) => {
-        try {
-            if (!historyDb) await openHistoryDb();
-            return new Promise((resolve, reject) => {
-                const tx = historyDb.transaction(STORE_NAME, 'readwrite');
-                const store = tx.objectStore(STORE_NAME);
-                const req = store.put(item);
-                req.onsuccess = () => resolve();
-                req.onerror = () => reject(req.error);
-            });
-        } catch (e) { console.warn('Error guardando item:', e); }
-    };
-
-    const deleteHistoryItemFromDb = async (id) => {
-        try {
-            if (!historyDb) await openHistoryDb();
-            return new Promise((resolve, reject) => {
-                const tx = historyDb.transaction(STORE_NAME, 'readwrite');
-                const store = tx.objectStore(STORE_NAME);
-                const req = store.delete(id);
-                req.onsuccess = () => resolve();
-                req.onerror = () => reject(req.error);
-            });
-        } catch (e) { console.warn('Error eliminando item:', e); }
-    };
-
-    const clearHistoryFromDb = async () => {
-        try {
-            if (!historyDb) await openHistoryDb();
-            return new Promise((resolve, reject) => {
-                const tx = historyDb.transaction(STORE_NAME, 'readwrite');
-                const store = tx.objectStore(STORE_NAME);
-                const req = store.clear();
-                req.onsuccess = () => resolve();
-                req.onerror = () => reject(req.error);
-            });
-        } catch (e) { console.warn('Error limpiando historial:', e); }
-    };
 
     // ════
     // RENDER HISTORIAL
@@ -134,8 +70,9 @@ document.addEventListener('DOMContentLoaded', () => {
         history.forEach((item, index) => {
             const card = document.createElement('div');
             card.className = 'result-card glass-hover';
+            const imageUrl = item.url || item.image || '';
             card.innerHTML = `
-                <img src="${item.image}" alt="Resultado ${index + 1}">
+                <img src="${imageUrl}" alt="Resultado ${index + 1}">
                 <div class="card-actions">
                     <button class="card-action-btn download" title="Descargar">
                     <i data-lucide="download"></i>
@@ -148,12 +85,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Eventos
             const img = card.querySelector('img');
-            img.onclick = () => openLightbox(item.image);
+            img.onclick = () => openLightbox(imageUrl);
 
             const downloadBtn = card.querySelector('.download');
             downloadBtn.onclick = (e) => {
                 e.stopPropagation();
-                downloadImage(item.image, `clon_${item.id}.png`);
+                downloadImage(imageUrl, `clon_${item.id}.png`);
             };
 
             const deleteBtn = card.querySelector('.delete');
@@ -170,24 +107,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function addToHistory(imageSrc) {
         const newItem = {
-            id: Math.random().toString(36).substring(7),
-            image: imageSrc,
+            id: 'cl_' + Math.random().toString(36).substring(2, 10),
+            url: imageSrc,
+            prompt: 'Clonación de identidad — ' + new Date().toLocaleString(),
             createdAt: Date.now()
         };
-        await saveHistoryItemToDb(newItem);
+        await HistoryManager.saveItem(newItem);
         history.unshift(newItem);
         renderHistory();
     }
 
     async function deleteFromHistory(id) {
-        await deleteHistoryItemFromDb(id);
+        await HistoryManager.deleteItem(id);
         history = history.filter(item => item.id !== id);
         renderHistory();
     }
 
     async function clearAllHistory() {
         if (confirm('¿Eliminar todo el historial?')) {
-            await clearHistoryFromDb();
+            await HistoryManager.clearAll();
             history = [];
             renderHistory();
         }
@@ -357,7 +295,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error('Error:', error);
-            alert('Fallo: ' + error.message);
+
+            let mensajeError = error.message;
+
+            // Manejo específico de errores de seguridad de Gemini
+            if (mensajeError.includes('Bloqueado: OTHER')) {
+                mensajeError = '⚠️ La IA bloqueó esta generación por filtros de seguridad.\n\n' +
+                    'Posibles causas:\n' +
+                    '• Las imágenes contienen rostros que no puede procesar\n' +
+                    '• Contenido que viola las políticas de uso\n' +
+                    '• Imágenes con baja calidad o poco claras\n' +
+                    '• Demasiadas caras o ninguna cara detectada\n\n' +
+                    'Recomendaciones:\n' +
+                    '1. Usa una selfie clara con buena iluminación\n' +
+                    '2. Asegúrate de que solo haya UNA cara en cada imagen\n' +
+                    '3. Evita imágenes borrosas o con ángulos extraños\n\n' +
+                    'Detalles técnicos:\n' + error.message;
+            } else if (mensajeError.includes('Bloqueado: SAFETY')) {
+                mensajeError = '⚠️ Generación bloqueada por filtros de seguridad.\n\n' + error.message;
+            } else if (mensajeError.includes('Bloqueado')) {
+                mensajeError = '⚠️ Generación bloqueada\n\n' + mensajeError;
+            }
+
+            alert(mensajeError);
         } finally {
             setTimeout(() => {
                 loadingOverlay.classList.add('hidden');
@@ -420,11 +380,31 @@ RESULT: The person in the second image now has the face and hair from the first 
         const res = await fetch(PROXY_URL, { method: 'POST', body: JSON.stringify(requestBody) });
         const data = await res.json();
 
+        // Información detallada de errores de seguridad
+        if (data.debug?.blockReason) {
+            console.warn('Bloqueo de seguridad:', data.debug);
+        }
+
         if (data.error) {
             throw new Error(data.error.message || JSON.stringify(data.error));
         }
         if (data.promptFeedback?.blockReason) {
-            throw new Error('Bloqueado: ' + data.promptFeedback.blockReason);
+            const reason = data.promptFeedback.blockReason;
+            const safetyRatings = data.promptFeedback.safetyRatings || [];
+
+            // Construir mensaje detallado
+            let detalles = 'Motivo: ' + reason;
+            if (safetyRatings.length > 0) {
+                const problematicas = safetyRatings
+                    .filter(r => r.probability !== 'NEGLIGIBLE')
+                    .map(r => r.category + ': ' + r.probability)
+                    .join(', ');
+                if (problematicas) {
+                    detalles += '\nDetectado: ' + problematicas;
+                }
+            }
+
+            throw new Error('Bloqueado: ' + reason + '\n\n' + detalles);
         }
 
         const images = [];
@@ -439,11 +419,6 @@ RESULT: The person in the second image now has the face and hair from the first 
                 }
             }
         }
-
-        if (images.length === 0) {
-            throw new Error('No se generó ninguna imagen.');
-        }
-        return images;
 
         if (images.length === 0) {
             throw new Error('No se generó ninguna imagen.');
@@ -464,15 +439,15 @@ RESULT: The person in the second image now has the face and hair from the first 
     });
 
     // ════
-    // INICIALIZACIÓN - CARGAR HISTORIAL
+    // INICIALIZACIÓN - CARGAR HISTORIAL (HistoryManager: IndexedDB + servidor)
     // ════
     async function init() {
         try {
-            await openHistoryDb();
-            history = await loadHistoryFromDb();
+            await HistoryManager.init();
+            history = await HistoryManager.loadAll();
             renderHistory();
         } catch (e) {
-            console.warn('Error inicializando:', e);
+            console.warn('Error inicializando historial:', e);
         }
     }
 
